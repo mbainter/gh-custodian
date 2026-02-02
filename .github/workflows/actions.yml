@@ -7,11 +7,14 @@ on:
       - '.github/workflows/**.yml'
       - '.github/workflows/**.yaml'
 
+permissions: read-all
+
 jobs:
   lint:
     permissions:
       contents: read
       statuses: write
+      pull-requests: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
