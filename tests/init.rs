@@ -1,6 +1,6 @@
-use std::env;
 use assert_cmd::cargo::*;
 use predicates::prelude::*;
+use std::env;
 
 #[test]
 fn github_token_missing() -> Result<(), Box<dyn std::error::Error>> {
@@ -8,8 +8,8 @@ fn github_token_missing() -> Result<(), Box<dyn std::error::Error>> {
 
     cmd.env_remove("GITHUB_TOKEN");
     cmd.assert()
-      .failure()
-      .stderr(predicate::str::contains("GITHUB_TOKEN must be set"));
+        .failure()
+        .stderr(predicate::str::contains("GITHUB_TOKEN must be set"));
 
     Ok(())
 }

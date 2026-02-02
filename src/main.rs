@@ -1,9 +1,9 @@
-use anyhow::{bail, Ok, Result};
+use anyhow::{Ok, Result, bail};
+use clap::Parser;
+use log::debug;
+use octorust::{Client, auth::Credentials};
 use std::env;
 use std::path::PathBuf;
-use clap::Parser;
-use log::{debug};
-use octorust::{auth::{Credentials}, Client};
 
 /// GitHub policy-based management for enterprises and organizations
 /// https://github.com/mbainter/gh-custodian
@@ -23,10 +23,7 @@ fn create_client() -> Result<Client> {
         bail!("GITHUB_TOKEN must be set");
     }
 
-    let github = Client::new(
-        "gh-custodian",
-        Credentials::Token(token.unwrap())
-    )?;
+    let github = Client::new("gh-custodian", Credentials::Token(token.unwrap()))?;
 
     Ok(github)
 }
@@ -34,19 +31,13 @@ fn create_client() -> Result<Client> {
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
-    env_logger::Builder::new()
-        .filter_level(args.verbosity.into())
-        .init();
+    env_logger::Builder::new().filter_level(args.verbosity.into()).init();
 
     debug!("policy: {:?}", args.policy);
 
     let github = create_client()?;
 
-    let repo = github
-        .repos()
-        .get("mbainter", "gh-custodian")
-        .await
-        .unwrap();
+    let repo = github.repos().get("mbainter", "gh-custodian").await.unwrap();
 
     dbg!(repo);
 
