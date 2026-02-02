@@ -3,6 +3,8 @@
 
 # About
 
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/mbainter/gh-custodian/badge)](https://scorecard.dev/viewer/?uri=github.com/mbainter/gh-custodian)
+
 This is a very early days project to grow my knowledge of Rust by solving a problem I have. I have been managing varying GitHub organizations for years and there are some frustrating gaps in tooling that I would like to attempt to solve. As noted above there are already efforts out there to solve some of them, but most of the work is focused on supporting open-source projects.
 
 This goal of this project is to create a composable tool that addresses some key gaps in GitHub management without requiring an organization or administrator to wholesale adopt a particular framework or solution. It is not intended to ever be a feature-complete tool for managing a GitHub organization but rather to be a collection of tools and glue to support GitHub administrators attempting to map best practices and local policy to their GitHub implementation.
