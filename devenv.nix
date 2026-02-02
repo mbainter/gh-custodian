@@ -1,6 +1,7 @@
 { pkgs, lib, config, inputs, ... }:
 {
   packages = with pkgs; [
+    actionlint
     cargo-outdated
     cargo-machete
     cargo-edit

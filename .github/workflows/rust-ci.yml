@@ -1,0 +1,299 @@
+---
+name: rust-ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request: {}
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  changed-files:
+    name: Detect changed files
+    runs-on: ubuntu-24.04
+    outputs:
+      changes: ${{ steps.detect.outputs.changes }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Detect changed paths (no external action)
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BASE_SHA='${{ github.event.pull_request.base.sha }}'
+            HEAD_SHA='${{ github.event.pull_request.head.sha }}'
+            echo "Base SHA: $BASE_SHA"
+            echo "Head SHA: $HEAD_SHA"
+            # List files changed between base and PR head
+            mapfile -t files < <(git diff --name-only --no-renames "$BASE_SHA" "$HEAD_SHA")
+          else
+            files=("src/force")
+          fi
+
+          changed=false
+          for f in "${files[@]}"; do
+            [[ $f == src/* ]] && changed=true
+            [[ $f == .github/workflows/rust* ]] && changed=true
+          done
+
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+
+  style:
+    name: Style
+    runs-on: ubuntu-24.04
+    needs: changed-files
+    if: ${{ needs.changed-files.outputs.changes == 'true' || github.event_name == 'push' }}
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: write
+      checks: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: cargo fmt
+        run: cargo fmt -- --check
+
+  lint:
+    name: Lint — ${{ matrix.runner }} - ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    needs: changed-files
+    if: ${{ needs.changed-files.outputs.changes == 'true' || github.event_name == 'push' }}
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: write
+      checks: write
+    env:
+      CARGO_INCREMENTAL: "0"
+      SCCACHE_CACHE_SIZE: 5G
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            profile: dev
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - run: |
+          rustup update stable && rustup default stable
+          rustup component add clippy
+
+      - name: Compute lockfile hash
+        id: lockhash
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "hash=$(sha256sum Cargo.lock | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore cargo cache
+        id: cache_cargo_restore
+        uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: cargo-${{ matrix.runner }}-${{ matrix.target }}-${{ matrix.profile }}-${{ steps.lockhash.outputs.hash }}
+          restore-keys: |
+            cargo-${{ matrix.runner }}-${{ matrix.target }}
+
+      - name: Install sccache
+        uses: taiki-e/install-action@650c5ca14212efbbf3e580844b04bdccf68dac31 # v2.67.18
+        with:
+          tool: sccache
+
+      - name: Configure sccache
+        shell: bash
+        run: |
+          echo "RUSTC_WRAPPER=sccache" >> "$GITHUB_ENV"
+
+      - name: cargo clippy
+        id: clippy
+        run: cargo clippy --target ${{ matrix.target }} --all-features --tests -- -D warnings
+
+      - name: Save cargo cache
+        if: always() && !cancelled() && steps.cache_cargo_restore.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: cargo-${{ matrix.runner }}-${{ matrix.target }}-${{ matrix.profile }}-${{ steps.lockhash.outputs.hash }}
+
+      - name: sccache stats
+        if: always()
+        continue-on-error: true
+        run: sccache --show-stats || true
+
+      - name: sccache summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "### sccache stats — ${{ matrix.target }}";
+            echo;
+            sccache --show-stats || true;
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: verify all steps passed
+        if: |
+          steps.clippy.outcome == 'failure'
+        run: |
+          echo "One or more checks failed. See logs for details."
+          exit 1
+
+  tests:
+    name: Tests — ${{ matrix.runner }} - ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    needs: changed-files
+    if: ${{ needs.changed-files.outputs.changes == 'true' || github.event_name == 'push' }}
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: write
+      checks: write
+    env:
+      CARGO_INCREMENTAL: "0"
+      SCCACHE_CACHE_SIZE: 5G
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            profile: dev
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - run: |
+          rustup update stable && rustup default stable
+
+      - name: Compute lockfile hash
+        id: lockhash
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "hash=$(sha256sum Cargo.lock | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore cargo cache
+        id: cache_cargo_restore
+        uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: cargo-${{ matrix.runner }}-${{ matrix.target }}-${{ matrix.profile }}-${{ steps.lockhash.outputs.hash }}
+          restore-keys: |
+            cargo-${{ matrix.runner }}-${{ matrix.target }}-
+
+      - name: Install sccache
+        uses: taiki-e/install-action@650c5ca14212efbbf3e580844b04bdccf68dac31 # v2.67.18
+        with:
+          tool: sccache
+
+      - name: Configure sccache
+        shell: bash
+        run: |
+          echo "RUSTC_WRAPPER=sccache" >> "$GITHUB_ENV"
+
+      - uses: taiki-e/install-action@650c5ca14212efbbf3e580844b04bdccf68dac31 # v2.67.18
+        with:
+          tool: nextest
+          version: 0.9.103
+
+      - name: tests
+        id: test
+        run: cargo nextest run --all-features --no-fail-fast --target ${{ matrix.target }} --cargo-profile test
+        env:
+          RUST_BACKTRACE: 1
+          NEXTEST_STATUS_LEVEL: leak
+
+      - name: Save cargo cache
+        if: always() && !cancelled() && steps.cache_cargo_restore.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: cargo-${{ matrix.runner }}-${{ matrix.target }}-${{ matrix.profile }}-${{ steps.lockhash.outputs.hash }}
+
+      - name: sccache stats
+        if: always()
+        continue-on-error: true
+        run: sccache --show-stats || true
+
+      - name: sccache summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "### sccache stats — ${{ matrix.target }} (tests)";
+            echo;
+            sccache --show-stats || true;
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: verify tests passed
+        if: steps.test.outcome == 'failure'
+        run: |
+          echo "Tests failed. See logs for details."
+          exit 1
+
+  results:
+    name: results (required)
+    runs-on: ubuntu-24.04
+    needs: [changed-files, style, lint, tests]
+    if: always()
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: write
+      checks: write
+    steps:
+      - name: Summary
+        shell: bash
+        run: |
+          echo "style: ${{ needs.style.result }}"
+          echo "lint   : ${{ needs.lint.result }}"
+          echo "tests  : ${{ needs.tests.result }}"
+
+          if [[ '${{ needs.changed-files.outputs.changes }}' != 'true' && '${{ github.event_name }}' != 'push' ]]; then
+            echo 'No relevant changes, skipping rust ci.'
+            exit 0
+          fi
+
+          # Otherwise require the jobs to have succeeded
+          [[ '${{ needs.style.result }}' == 'success' ]] || { echo 'style failed'; exit 1; }
+          [[ '${{ needs.lint.result }}' == 'success' ]] || { echo 'lint failed'; exit 1; }
+          [[ '${{ needs.tests.result }}' == 'success' ]] || { echo 'tests failed'; exit 1; }
