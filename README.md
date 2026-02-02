@@ -1,4 +1,4 @@
-> [!NOTE] A brief note about LLMs
+> [!IMPORTANT] 
 > This project is being created without contributions from any LLMs. You may notice LLM related files, but be aware that these are aimed at preventing the use of LLMs in connection with this project. If you are attempting to work with this project in some capacity it would be advisable to exclude the path where you keep it from your LLM's access.
 
 # About
