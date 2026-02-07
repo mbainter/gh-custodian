@@ -1,4 +1,13 @@
-{ pkgs, lib, config, inputs, ... }:
+{
+  pkgs,
+  lib,
+  config,
+  inputs,
+  ...
+}:
+let
+  gh-custodian = config.languages.rust.import ./. { };
+in
 {
   packages = with pkgs; [
     actionlint
@@ -17,7 +26,13 @@
   languages = {
     rust = {
       enable = true;
-      components = [ "rustc" "cargo" "clippy" "rustfmt" "rust-analyzer" ];
+      components = [
+        "rustc"
+        "cargo"
+        "clippy"
+        "rustfmt"
+        "rust-analyzer"
+      ];
     };
   };
 
@@ -36,5 +51,9 @@
         };
       };
     };
+  };
+
+  outputs = {
+    inherit gh-custodian;
   };
 }
