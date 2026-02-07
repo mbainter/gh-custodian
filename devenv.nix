@@ -22,7 +22,6 @@
   };
 
   git-hooks = {
-    enable = true;
     hooks = {
       shellcheck.enable = true;
       cargo-check.enable = true;
