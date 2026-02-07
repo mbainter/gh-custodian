@@ -1,7 +1,7 @@
 use anyhow::{Ok, Result, bail};
 use clap::Parser;
 use log::debug;
-use octocrate::{GitHubAPI, APIConfig, PersonalAccessToken};
+use octocrate::{APIConfig, GitHubAPI, PersonalAccessToken};
 use std::env;
 use std::path::PathBuf;
 
