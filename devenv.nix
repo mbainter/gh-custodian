@@ -36,11 +36,18 @@ in
     };
   };
 
+  treefmt = {
+    enable = true;
+    config.programs = {
+      nixfmt.enable = true;
+      rustfmt.enable = true;
+    };
+  };
+
   git-hooks = {
     hooks = {
       shellcheck.enable = true;
       cargo-check.enable = true;
-      rustfmt.enable = true;
       clippy.enable = true;
       markdownlint = {
         settings.configuration = {
@@ -50,6 +57,7 @@ in
           MD033 = false;
         };
       };
+      treefmt.enable = true;
     };
   };
 
