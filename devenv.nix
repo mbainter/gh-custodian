@@ -9,6 +9,7 @@
     cargo-nextest
     cargo-deny
     git
+    libressl
     just
     pinact
   ];
