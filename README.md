@@ -15,21 +15,30 @@ For more details on the specific concepts being initially explored refer to the 
 
 There are already a number of solutions in this space each of which has fallen short for varying reasons. 
 
-#### [safe-settings](https://github.com/github/safe-settings)
+#### GitHub's [safe-settings](https://github.com/github/safe-settings) tool
 
-This is the closest to this project, but the progress has been agonizingly slow and makes some assumptions about organizational design and access management that limit its usefulness. The use of yaml also limits its flexibility and efficiency without diving into generated configurations.
+This is the closest to this project, but the progress has been agonizingly slow and makes some assumptions about organizational design and access management that [limit its usefulness](https://github.com/mbainter/gh-custodian/wiki/Why-not-safe%E2%80%90settings) from my perspective.
 
-#### Infrastructure as Code (Terraform, OpenTofu, Pulumi)
+#### Infrastructure as Code (OpenTofu, Terraform, Pulumi)
 
-One of the biggest challenges for solving this is that while GitHub provides an expansive API it has had a number of significant version changes, and GitHub is not great at ensuring comparable functionality between versions. It is not uncommon to need to work with multiple versions of the API to accomplish a given task. There are even tasks that require leveraging both the GraphQL API and the REST API to accomplish effectively. This presents a significant hurdle for IaC providers.
+OpenTofu et al are excellent for managing infrastructure and similar tooling, where you have an absolute end-state
+that you want to enforce. Where it tends to fall down is when you need some degree of flexibility. 
 
-A lot of this could be done with Terraform, and I have gone down this route multiple times over the years. The way the API is designed creates cyclical reference challenges and large numbers of resources that quickly becomes unwieldy and error-prone. There are also challenges when trying to balance policy and flexibility.
+Pulumi gets closer because you have more ability to control the flow and access to more flexible data structures and
+abstractions through the available languages. However, you are still largely enforcing a specific state, and what
+I am after with this project is more akin to *governance* than configuration. ([more](https://github.com/mbainter/gh-custodian/wiki/Why-not-OpenTofu,-Terraform-or-Pulumi))
 
-There are situations where you want to allow the team managing a repository to have a degree of control over the rules and configuration but still ensure that certain requirements are always present. This mix requires a policy validation approach to avoid configuration drift nightmares.
+#### Ansible and Configuration as Code
 
-Pulumi gets a lot closer because you can leverage data structures more flexbily and powerfully in code than you can in Terraform's DSL. It also makes dealing with some of the circular references easier. Unfortunately it still falls prey to the API problems in the first paragraph.
+Ansible doesn't actually have a solution for this. There is a community plugin for basic repository configuration, but that's all. I think the model of configuration-as-code is much closer to how this should be solved, but you have to interact with too much data for Ansible or other similar tools to be particularly effective here.
+
+However, one implementation I am keeping in my mind as I work out the specifics is CFEngine. I cut my teeth in configuration management with CFEngine and it has long been the standard I have compared everything else to.
+
+Mark Burgess' convergent, policy-based model is definitely a key inspiration to my approach here (Note: If you are not familiar CFEngine please go read about that first and judge my poor imitation by CFEngine's and not the other way around.)
 
 #### [OpenSSF](https://openssf.org) Projects
 
-There are a number of OpenSSF projects that overlap with the goals of this work, including [minder](https://mindersec.dev), [gittuf](https://gittuf.dev/), and [scorecard](https://scorecard.dev). The goal of this project would be to complement or even incorporate those projects.
+There are a number of OpenSSF projects that overlap with the goals of this work, including [minder](https://mindersec.dev), [gittuf](https://gittuf.dev/), and [scorecard](https://scorecard.dev). The goal of this project would be to complement or even incorporate those projects rather than compete with them.
+
+Ideally I would have some out-of-the-box starter configurations that would align well to implementing at least scorecard.
 
