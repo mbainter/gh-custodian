@@ -13,4 +13,5 @@ devenv.local.yaml
 /result
 
 # gh-custodian
+.gitignore.local
 /target
