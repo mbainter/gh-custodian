@@ -21,6 +21,7 @@ in
     libressl
     just
     pinact
+    libsodium
   ];
 
   languages = {
@@ -33,6 +34,12 @@ in
         "rustfmt"
         "rust-analyzer"
       ];
+    };
+
+    python = {
+      enable = true;
+      venv.enable = true;
+      uv.enable = true;
     };
   };
 
