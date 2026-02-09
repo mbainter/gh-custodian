@@ -1,7 +1,9 @@
+mod client;
 use anyhow::{Ok, Result, bail};
 use clap::Parser;
+use client::github::orgs::OrgsMgmt;
 use log::debug;
-use octocrate::{APIConfig, GitHubAPI, PersonalAccessToken};
+use octorust::{Client, auth::Credentials};
 use std::env;
 use std::path::PathBuf;
 
@@ -16,6 +18,18 @@ struct Args {
     verbosity: clap_verbosity_flag::Verbosity,
 }
 
+fn create_client() -> Result<Client> {
+    let token = env::var("GITHUB_TOKEN");
+
+    if token.is_err() {
+        bail!("GITHUB_TOKEN must be set");
+    }
+
+    let client = Client::new("gh-custodian", Credentials::Token(token.unwrap()))?;
+
+    Ok(client)
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
@@ -23,22 +37,15 @@ async fn main() -> Result<()> {
 
     debug!("policy: {:?}", args.policy);
 
-    let token = env::var("GITHUB_TOKEN");
+    let gh = create_client().unwrap();
 
-    if token.is_err() {
-        bail!("GITHUB_TOKEN must be set");
-    }
+    let repo = gh.repos().get("mbainter", "gh-custodian").await?;
 
-    let pat = PersonalAccessToken::new(token.unwrap());
-    let config = APIConfig::with_token(pat).shared();
+    dbg!(repo);
 
-    let gh = GitHubAPI::new(&config);
+    let rulesets = gh.orgs().list_rulesets("litmus").await?;
 
-    // let repo = gh.repos.get("mbainter", "gh-custodian").send().await?;
-    // dbg!(repo);
-
-    let ruleset = gh.repos.get_org_ruleset("litmus", 670245i32).send().await?;
-    dbg!(ruleset);
+    dbg!(rulesets);
 
     Ok(())
 }
