@@ -9,8 +9,12 @@ devenv.local.yaml
 # pre-commit
 .pre-commit-config.yaml
 
+# local config
+.gitignore.local
+
 # Nix
 /result
 
 # gh-custodian
 /target
+
